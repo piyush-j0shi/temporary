@@ -1,3 +1,9 @@
+"""Service for handling file-related operations.
+
+This module provides functionalities for extracting text from various file types
+and truncating text content.
+"""
+
 import logging
 from typing import BinaryIO
 from PyPDF2 import PdfReader
@@ -8,9 +14,22 @@ logger = logging.getLogger(__name__)
 
 
 class FileService:
+    """Handles file processing, including text extraction and content truncation.
+    """
+
     @staticmethod
     def extract_text_from_pdf(file: BinaryIO) -> str:
-        """Extract text from PDF file."""
+        """Extracts text content from a PDF file.
+
+        Args:
+            file: A binary file-like object representing the PDF.
+
+        Returns:
+            The extracted text content from the PDF.
+
+        Raises:
+            HTTPException: If an error occurs during text extraction.
+        """
         try:
             reader = PdfReader(file)
             text = ""
@@ -23,7 +42,17 @@ class FileService:
 
     @staticmethod
     def extract_text_from_txt(file: BinaryIO) -> str:
-        """Extract text from TXT file."""
+        """Extracts text content from a TXT file.
+
+        Args:
+            file: A binary file-like object representing the TXT file.
+
+        Returns:
+            The extracted text content from the TXT file.
+
+        Raises:
+            HTTPException: If an error occurs during text extraction.
+        """
         try:
             content = file.read()
             return content.decode("utf-8")
@@ -33,7 +62,21 @@ class FileService:
 
     @classmethod
     def extract_text(cls, file: UploadFile) -> str:
-        """Extract text from uploaded file based on extension."""
+        """Extracts text from an uploaded file based on its extension.
+
+        Args:
+            file: The uploaded file object.
+
+        Returns:
+            The extracted text content from the file.
+
+        Raises:
+            HTTPException:
+                - If no filename is provided.
+                - If the file size exceeds the maximum allowed size.
+                - If the file type is not supported.
+                - If an error occurs during text extraction.
+        """
         if not file.filename:
             raise HTTPException(status_code=400, detail="No filename provided.")
         
@@ -64,7 +107,16 @@ class FileService:
 
     @staticmethod
     def truncate_context(text: str, max_length: int = None) -> str:
-        """Truncate text to maximum context length."""
+        """Truncates the given text to a specified maximum length.
+
+        Args:
+            text: The input text string.
+            max_length: The maximum length for the truncated text. If None,
+                        `settings.max_context_length` is used.
+
+        Returns:
+            The truncated text string.
+        """
         if max_length is None:
             max_length = settings.max_context_length
         return text[:max_length]

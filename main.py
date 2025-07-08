@@ -1,3 +1,9 @@
+"""Main application file.
+
+This file initializes the FastAPI application, includes the API router,
+and defines the root and health check endpoints.
+"""
+
 import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -25,14 +31,25 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """Serve the main chat interface."""
+    """Serve the main chat interface.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        The root path.
+    """
     # return templates.TemplateResponse("index.html", {"request": request})
     return "/"
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    Returns:
+        A dictionary with the status of the application.
+    """
     return {"status": "healthy", "message": "AI Chat Assistant is running"}
 
 

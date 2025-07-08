@@ -1,3 +1,9 @@
+"""API routes for the chat application.
+
+This module defines the API endpoints for the chat application, including
+handling chat messages, file uploads, and session management.
+"""
+
 import logging
 import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException
@@ -23,7 +29,14 @@ memory_service = MemoryService()
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Handle chat message."""
+    """Handle chat message.
+
+    Args:
+        request: The chat request containing the session ID and message.
+
+    Returns:
+        The chat response containing the assistant'''s message.
+    """
     try:
         if not memory_service.session_exists(request.session_id):
             memory_service.create_session(request.session_id)
@@ -61,7 +74,16 @@ async def upload_file(
     question: str = "What is the main topic?",
     session_id: str = None
 ):
-    """Handle file upload and question."""
+    """Handle file upload and question.
+
+    Args:
+        file: The uploaded file.
+        question: The question about the file.
+        session_id: The session ID.
+
+    Returns:
+        The file upload response containing the answer to the question.
+    """
     try:
         if session_id is None:
             session_id = str(uuid.uuid4())
@@ -107,7 +129,14 @@ async def upload_file(
 
 @router.get("/sessions/{session_id}/history", response_model=ChatHistory)
 async def get_chat_history(session_id: str):
-    """Get chat history for a session."""
+    """Get chat history for a session.
+
+    Args:
+        session_id: The session ID.
+
+    Returns:
+        The chat history for the session.
+    """
     try:
         if not memory_service.session_exists(session_id):
             raise HTTPException(status_code=404, detail="Session not found")
@@ -133,7 +162,14 @@ async def get_chat_history(session_id: str):
 
 @router.post("/sessions/{session_id}/clear")
 async def clear_session(session_id: str):
-    """Clear a session."""
+    """Clear a session.
+
+    Args:
+        session_id: The session ID.
+
+    Returns:
+        A JSON response indicating that the session was cleared.
+    """
     try:
         if not memory_service.session_exists(session_id):
             raise HTTPException(status_code=404, detail="Session not found")
@@ -151,7 +187,11 @@ async def clear_session(session_id: str):
 
 @router.post("/sessions/new")
 async def create_new_session():
-    """Create a new session."""
+    """Create a new session.
+
+    Returns:
+        A JSON response containing the new session ID.
+    """
     try:
         session_id = str(uuid.uuid4())
         memory_service.create_session(session_id)
@@ -165,7 +205,14 @@ async def create_new_session():
 
 @router.get("/sessions/{session_id}/info", response_model=SessionInfo)
 async def get_session_info(session_id: str):
-    """Get session information."""
+    """Get session information.
+
+    Args:
+        session_id: The session ID.
+
+    Returns:
+        The session information.
+    """
     try:
         session_info = memory_service.get_session_info(session_id)
         

@@ -8,9 +8,9 @@ from models.schemas import (
     ChatRequest, ChatResponse, FileUploadResponse,
     ChatMessage, SessionInfo, ChatHistory
 )
-from services.file_service import FileService
-from services.llm_service import LLMService
-from services.memory_service import MemoryService
+from functions.file_functions import FileService
+from functions.llm_functions import LLMService
+from functions.memory_functions import MemoryService
 
 logger = logging.getLogger(__name__)
 

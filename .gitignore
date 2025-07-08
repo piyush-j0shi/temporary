@@ -12,6 +12,6 @@ wheels/
 __pycache__/
 .env
 .pytest_cache/
+*.db
 *.db-shm
 *.db-wal
-*.db

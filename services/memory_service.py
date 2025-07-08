@@ -1,18 +1,17 @@
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-from langgraph.checkpoint.sqlite import SqliteSaver
+import uuid
+from typing import List, Dict, Optional
+from datetime import datetime, timezone
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
-from config.settings import settings
 from models.schemas import ChatMessage, SessionInfo
+from utils import get_sqlite_saver
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryService:
     def __init__(self):
-        self.memory = SqliteSaver.from_conn_string(f"sqlite:///{settings.database_path}")
-        self.memory.setup()
+        self.memory = get_sqlite_saver()
 
     def _convert_to_langchain_message(self, message: ChatMessage) -> BaseMessage:
         """Convert ChatMessage to LangChain message."""
@@ -33,44 +32,35 @@ class MemoryService:
     def save_message(self, session_id: str, message: ChatMessage) -> None:
         """Save a message to the session."""
         try:
-            # Get current state
-            current_state = self.get_session_state(session_id)
-            
-            # Convert to LangChain message
+            config = {"configurable": {"thread_id": session_id, "checkpoint_ns": ""}}
+            checkpoint = self.memory.get(config)
+            if not checkpoint:
+                logger.warning(f"No checkpoint found for session {session_id}. The session may not have been created correctly.")
+                self.create_session(session_id)
+                checkpoint = self.memory.get(config)
+
             lc_message = self._convert_to_langchain_message(message)
+            checkpoint["channel_values"]["messages"].append(lc_message)
             
-            # Add to current messages
-            current_state["messages"].append(lc_message)
-            
-            # Save state
-            config = {"configurable": {"thread_id": session_id}}
-            self.memory.put(config, {"messages": current_state["messages"]})
+            checkpoint["id"] = str(uuid.uuid4())
+            checkpoint["ts"] = datetime.now(timezone.utc).isoformat()
+
+            self.memory.put(config, checkpoint, {}, {})
             
         except Exception as e:
             logger.error(f"Error saving message: {e}")
             raise
 
-    def get_session_state(self, session_id: str) -> Dict[str, Any]:
-        """Get current session state."""
-        try:
-            config = {"configurable": {"thread_id": session_id}}
-            checkpoint = self.memory.get(config)
-            
-            if checkpoint is None:
-                return {"messages": []}
-            
-            return checkpoint.get("channel_values", {"messages": []})
-            
-        except Exception as e:
-            logger.error(f"Error getting session state: {e}")
-            return {"messages": []}
-
     def get_chat_history(self, session_id: str) -> List[ChatMessage]:
         """Get chat history for a session."""
         try:
-            state = self.get_session_state(session_id)
-            messages = state.get("messages", [])
+            config = {"configurable": {"thread_id": session_id, "checkpoint_ns": ""}}
+            checkpoint = self.memory.get(config)
             
+            if checkpoint is None:
+                return []
+            
+            messages = checkpoint.get("channel_values", {}).get("messages", [])
             return [self._convert_from_langchain_message(msg) for msg in messages]
             
         except Exception as e:
@@ -81,11 +71,8 @@ class MemoryService:
         """Get conversation context for LLM."""
         try:
             messages = self.get_chat_history(session_id)
-            
-            # Get last max_messages
             recent_messages = messages[-max_messages:] if len(messages) > max_messages else messages
             
-            # Convert to format expected by LLM
             context = []
             for msg in recent_messages:
                 context.append({
@@ -102,8 +89,16 @@ class MemoryService:
     def create_session(self, session_id: str) -> None:
         """Create a new session."""
         try:
-            config = {"configurable": {"thread_id": session_id}}
-            self.memory.put(config, {"messages": []})
+            config = {"configurable": {"thread_id": session_id, "checkpoint_ns": ""}}
+            checkpoint = {
+                "v": 1,
+                "id": str(uuid.uuid4()),
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "channel_values": {"messages": []},
+                "channel_versions": {},
+                "versions_seen": {},
+            }
+            self.memory.put(config, checkpoint, {}, {})
             
         except Exception as e:
             logger.error(f"Error creating session: {e}")
@@ -112,8 +107,14 @@ class MemoryService:
     def clear_session(self, session_id: str) -> None:
         """Clear a session."""
         try:
-            config = {"configurable": {"thread_id": session_id}}
-            self.memory.put(config, {"messages": []})
+            config = {"configurable": {"thread_id": session_id, "checkpoint_ns": ""}}
+            checkpoint = self.memory.get(config)
+
+            if checkpoint:
+                checkpoint["channel_values"]["messages"] = []
+                checkpoint["id"] = str(uuid.uuid4())
+                checkpoint["ts"] = datetime.now(timezone.utc).isoformat()
+                self.memory.put(config, checkpoint, {}, {})
             
         except Exception as e:
             logger.error(f"Error clearing session: {e}")
@@ -122,7 +123,7 @@ class MemoryService:
     def session_exists(self, session_id: str) -> bool:
         """Check if session exists."""
         try:
-            config = {"configurable": {"thread_id": session_id}}
+            config = {"configurable": {"thread_id": session_id, "checkpoint_ns": ""}}
             checkpoint = self.memory.get(config)
             return checkpoint is not None
             

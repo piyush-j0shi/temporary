@@ -81,70 +81,71 @@ memory = MemorySaver()
 graph = graph_builder.compile(checkpointer=memory)
 
 def run_with():
-    
-    config = {
-        "configurable": {
-            "thread_id": "6"
+    while True:
+        config = {
+            "configurable": {
+                "thread_id": "6"
+            }
         }
-    }
 
-    user_input = "what is the weather in tokyo japan now."
-    initial_state = {
-        "messages": [{"role": "user", "content": user_input}],
-        "approved": False
-    }
-
-    print("Starting conversation with commands and interrupts...")
-    
-    try:
-        events = list(graph.stream(initial_state, config, stream_mode="values"))
-        snapshot = graph.get_state(config=config)
+        user_input = input("enter your question : ")
         
-        while snapshot.interrupts:
-            print(f"\nInterrupt detected: {snapshot.interrupts[0].value}")
-            
-            user_response = input("Your response: ")
-            print(f"Resuming with: {user_response}")
-            
-            events = list(graph.stream(Command(resume=user_response), config, stream_mode="values"))
+        initial_state = {
+            "messages": [{"role": "user", "content": user_input}],
+            "approved": False
+        }
+
+        print("Starting conversation with commands and interrupts...")
+        
+        try:
+            events = list(graph.stream(initial_state, config, stream_mode="values"))
             snapshot = graph.get_state(config=config)
             
-            for event in events:
-                print(f"Event: {event}")
+            while snapshot.interrupts:
+                print(f"\nInterrupt detected: {snapshot.interrupts[0].value}")
                 
-        print("\nConversation completed!")
-        
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-        
-        snapshot = graph.get_state(config=config)
-        if snapshot.interrupts:
-            print(f"\nInterrupt found in exception: {snapshot.interrupts[0].value}")
-            user_response = input("Your response: ")
-            
-            try:
+                user_response = input("Your response: ")
+                print(f"Resuming with: {user_response}")
+                
                 events = list(graph.stream(Command(resume=user_response), config, stream_mode="values"))
-                for event in events:
-                    print(f"Resume event: {event}")
-            except Exception as resume_e:
-                print(f"Resume exception: {resume_e}")
-    
-    final_snapshot = graph.get_state(config=config)
-    print(f"\nFinal state:")
-    print(f"Next: {final_snapshot.next}")
-    print(f"Interrupts: {len(final_snapshot.interrupts)}")
-    
-    if final_snapshot.values.get('messages'):
-        print(f"Total messages: {len(final_snapshot.values['messages'])}")
-        
-        if final_snapshot.values['messages']:
-            last_msg = final_snapshot.values['messages'][-1]
-            
-            if hasattr(last_msg, 'content'):
-                print(f"Last message: {last_msg.content[:100]}...")
+                snapshot = graph.get_state(config=config)
                 
-            else:
-                print(f"Last message: {str(last_msg)[:100]}...")
+                for event in events:
+                    print(f"Event: {event}")
+                    
+            print("\nConversation completed!")
+            
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+            
+            snapshot = graph.get_state(config=config)
+            if snapshot.interrupts:
+                print(f"\nInterrupt found in exception: {snapshot.interrupts[0].value}")
+                user_response = input("Your response: ")
+                
+                try:
+                    events = list(graph.stream(Command(resume=user_response), config, stream_mode="values"))
+                    for event in events:
+                        print(f"Resume event: {event}")
+                except Exception as resume_e:
+                    print(f"Resume exception: {resume_e}")
+        
+        final_snapshot = graph.get_state(config=config)
+        print(f"\nFinal state:")
+        print(f"Next: {final_snapshot.next}")
+        print(f"Interrupts: {len(final_snapshot.interrupts)}")
+        
+        if final_snapshot.values.get('messages'):
+            print(f"Total messages: {len(final_snapshot.values['messages'])}")
+            
+            if final_snapshot.values['messages']:
+                last_msg = final_snapshot.values['messages'][-1]
+                
+                if hasattr(last_msg, 'content'):
+                    print(f"Last message: {last_msg.content[:100]}...")
+                    
+                else:
+                    print(f"Last message: {str(last_msg)[:100]}...")
 
 if __name__ == "__main__":
     run_with()
